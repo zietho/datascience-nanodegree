@@ -1,1 +1,32 @@
-/Deep\ Learning/
+Deep\ Learning/lecture-screenshots
+
+# by default ignore all files
+deep-learning/autoencoder
+deep-learning/batch-norm
+deep-learning/dcgan-svhn
+deep-learning/embeddings
+deep-learning/environments
+deep-learning/face_generation
+deep-learning/first-neural-network
+deep-learning/gan_mnist
+deep-learning/image-classification
+deep-learning/IMDB-keras
+deep-learning/intro-to-rnns
+deep-learning/intro-to-tensorflow
+deep-learning/intro-to-tflearn
+deep-learning/language-translation
+deep-learning/linear-regression
+deep-learning/reinforcement
+deep-learning/semi-supervised
+deep-learning/sentiment-network
+deep-learning/sentiment-rnn
+deep-learning/seq2seq
+deep-learning/student-admissions
+deep-learning/student-admissions-keras
+deep-learning/tensorboard
+deep-learning/transfer-learning
+deep-learning/tv-script-generation
+deep-learning/weight-initialization
+
+# deep-learning/gradient-descent
+deep-learning/gradient-descent/GradientDescentSolutions.ipynb
