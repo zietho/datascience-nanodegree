@@ -1,0 +1,5 @@
+lectur regarding gradient - https://www.khanacademy.org/math/multivariable-calculus/multivariable-derivatives/gradient-and-directional-derivatives/v/gradient
+vectors - https://www.khanacademy.org/math/linear-algebra/vectors-and-spaces/vectors/v/vector-introduction-linear-algebra
+backpropagation
+- https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
+- https://www.youtube.com/watch?v=59Hbtz7XgjM
