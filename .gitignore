@@ -1,32 +1,32 @@
 Deep\ Learning/lecture-screenshots
 
 # by default ignore all files
-deep-learning/autoencoder
-deep-learning/batch-norm
-deep-learning/dcgan-svhn
-deep-learning/embeddings
-deep-learning/environments
-deep-learning/face_generation
-deep-learning/first-neural-network
-deep-learning/gan_mnist
-deep-learning/image-classification
-deep-learning/IMDB-keras
-deep-learning/intro-to-rnns
-deep-learning/intro-to-tensorflow
-deep-learning/intro-to-tflearn
-deep-learning/language-translation
-deep-learning/linear-regression
-deep-learning/reinforcement
-deep-learning/semi-supervised
-deep-learning/sentiment-network
-deep-learning/sentiment-rnn
-deep-learning/seq2seq
-deep-learning/student-admissions
-deep-learning/student-admissions-keras
-deep-learning/tensorboard
-deep-learning/transfer-learning
-deep-learning/tv-script-generation
-deep-learning/weight-initialization
+02 deep-learning/autoencoder
+02 deep-learning/batch-norm
+02 deep-learning/dcgan-svhn
+02 deep-learning/embeddings
+02 deep-learning/environments
+02 deep-learning/face_generation
+02 deep-learning/first-neural-network
+02 deep-learning/gan_mnist
+02 deep-learning/image-classification
+02 deep-learning/IMDB-keras
+02 deep-learning/intro-to-rnns
+02 deep-learning/intro-to-tensorflow
+02 deep-learning/intro-to-tflearn
+02 deep-learning/language-translation
+02 deep-learning/linear-regression
+02 deep-learning/reinforcement
+02 deep-learning/semi-supervised
+02 deep-learning/sentiment-network
+02 deep-learning/sentiment-rnn
+02 deep-learning/seq2seq
+02 deep-learning/student-admissions
+02 deep-learning/student-admissions-keras
+02 deep-learning/tensorboard
+02 deep-learning/transfer-learning
+02 deep-learning/tv-script-generation
+02 deep-learning/weight-initialization
 
-# deep-learning/gradient-descent
-deep-learning/gradient-descent/GradientDescentSolutions.ipynb
+# 02 deep-learning/gradient-descent
+02 deep-learning/gradient-descent/GradientDescentSolutions.ipynb
