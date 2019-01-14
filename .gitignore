@@ -30,3 +30,8 @@ Deep\ Learning/lecture-screenshots
 
 # 02 deep-learning/gradient-descent
 02 deep-learning/gradient-descent/GradientDescentSolutions.ipynb
+
+aipnd/assets/*
+aipnd/flowers/*
+aipnd/checkpoint-12012019.pth
+checkpoint-12012019.pth
