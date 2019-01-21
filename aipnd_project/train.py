@@ -4,6 +4,8 @@ from network import Network
 from network import TorchvisionModels
 from network import UnknownModelError
 from utilities import ImageUtilities
+from torch import optim
+from torch import nn
 
 # define argument parser 
 parser = ArgumentParser()
@@ -29,7 +31,7 @@ parser.add_argument("--gpu",
                     action="store_const",
                     const="cuda",
                     default="cpu",  
-                    help="sets the architecture that is used for the newtork")
+                    help="flag for deciding whether gpu is used or not")
 parser.add_argument("--mean", 
                     dest="mean",  
                     default=[0.485, 0.456, 0.406],
@@ -61,7 +63,7 @@ except UnknownModelError as err:
     print('An error occured ', err)
 
 # create network based on arguments dict 
-network = Network({
+network = Network(model, {
     'data_dir': args.data_dir,
     'save_dir': args.save_dir,
     'epochs' : args.epochs,
@@ -74,20 +76,33 @@ network = Network({
 image_utilities = ImageUtilities({
     'image_size': args.image_size,
     'batch_size': args.batch_size, 
-    'data_dir': args.data_dir,
     'mean': args.mean,
     'std': args.std
 })
 
-image_utilities.load_data()
-data_loaders = image_utilities.get_data_loaders()
-class_to_idx = image_utilities.get_class_to_idx()
+# load data from using the utilities function
+image_datasets, data_loaders = image_utilities.load(args.data_dir)
 
-#set criterion
-criterion = nn.NLLLoss()
 #train only the classifier
-optimizer = optim.Adam(model.classifier.parameters(), lr=learning_rate) 
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.classifier.parameters(),lr=args.learning_rate)
+train_dataloader = data_loaders.get('train')
+validation_dataloader = data_loaders.get('valid')  
+test_dataloader = data_loaders.get('test')
+
+network.train_model(train_dataloader, validation_dataloader, criterion, optimizer)
+
+network.validate_model(test_dataloader, criterion)
+# set class to idx 
+network.set_class_to_idx(image_datasets.get('train').class_to_idx)
+
 
 #test arguments
 #args = parser.parse_args()
 #print(args)
+
+# check
+image_path = 'flowers/test/2/image_05107.jpg'
+image = Image.open(image_path)
+processed_image = process_image(image)
+imshow(processed_image)

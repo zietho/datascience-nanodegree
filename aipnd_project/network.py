@@ -14,14 +14,15 @@ from torchvision import models
 
 class Network: 
     #constructor 
-    def __init__(self, model, args):
-        self.model = model, 
+    def __init__(self, args):
+        self.model = args.model if hasattr(args,'model') else None 
         self.input_size = model.classifier[0].in_features
         self.data_dir = args.data_dir if hasattr(args,'data_dir') else '/'
         self.save_dir = args.save_dir if hasattr(args,'save_dir') else '/'
         self.epochs = args.epochs if hasattr(args,'epochs') else 5
         self.learning_rate = args.learning_rate if hasattr(args,'learning_rate') else 0.001
         self.device = args.device if hasattr(args,'device') else 'cpu'
+        self.print_info_every = args.print_info_every if hasattr(args, 'print_info_every') else 50
         #TODO figure out how to measure this!
         self.output_size = 3# ? if categories are only used in predict - how can we get this info ? 
         #TODO figure out what is meant by e.g., 512 ? 
@@ -62,74 +63,71 @@ class Network:
         
         steps = 0
 
-        for e in range(self.epochs):
+        for epoch in range(self.epochs):
             running_loss = 0
             for images, labels in train_dataloader:
-                self.steps +=1
+                steps +=1
                 # Move input and label tensors to the GPU
                 images, labels = images.to(self.device), labels.to(self.device)
-
-                # reset 
                 optimizer.zero_grad()
 
                 log_ps = self.model(images)
-                loss = criterion(log_ps, labels)
-                loss.backward()
+                train_loss = criterion(log_ps, labels)
+                train_loss.backward()
                 optimizer.step()
-                running_loss += loss.item()
+                running_loss += train_loss.item()
                 
-                if steps % self.print_info_everyvery == 0:
-                    accuracy = 0 
-                    test_loss = 0 
-                    self.model.eval()
-                    
-                    with torch.no_grad():
-                        # validation pass here
-                        for images, labels in validation_dataloader:
-                            images, labels = images.to(self.device), labels.to(self.device)
-                            log_ps = self.model(images)
-                            test_loss += criterion(log_ps,labels).item()
-                            ps = torch.exp(log_ps)
-
-                            top_p, top_class = ps.topk(1, dim=1)
-                            equals = top_class == labels.view(*top_class.shape)
-                            accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
-
-                    print("epoch: {}/{}".format(e+1,self.epochs),
+                if steps % self.print_info_every == 0:
+                    test_loss, test_accuracy = self.accuracy_and_loss(validation_dataloader, criterion)
+                    no_items = len(validation_dataloader
+                    print(
+                        "epoch: {}/{}".format(epoch+1,self.epochs),
                         "Train loss: {:.3f}..".format(running_loss/self.print_info_every),
-                        "Test loss: {:.3f}..".format(test_loss/len(validation_dataloader)),
-                        "f'Accuracy: {:.3f}".format(accuracy/len(validation_dataloader)))             
+                        "Test loss: {:.3f}..".format(test_loss/no_items),
+                        "f'Accuracy: {:.3f}".format(test_accuracy/no_items)
+                    )             
 
                     #reset 
                     running_loss=0
-                    self.model.train()   
+                    
 
-    def validate_model(self, criterion, dataloader):
-        # Put model in inference mode
-        self.model.eval()
-        accuracy = 0
+    def accuracy_and_loss(self, dataloader, criterion):
         loss = 0
+        accuracy = 0 
         
+        # go into eval mode 
+        self.model.eval()
+                    
         with torch.no_grad():
+            # validation pass here
             for images, labels in dataloader:
                 images, labels = images.to(self.device), labels.to(self.device)
-                output = self.model.forward(images)
-                loss += criterion(output, labels).item()
-                
-                # exp of softmax 
-                ps = torch.exp(output).data
-                # TODO - check this line!? 
-                equality = (labels.data == ps.max(1)[1])
-                
-                # calc mean of predictions
-                accuracy += equality.type_as(torch.FloatTensor()).mean()
+                log_ps = self.model(images)
+                loss += criterion(log_ps,labels).item()
+                ps = torch.exp(log_ps)
 
-        validation_loss = loss/len(dataloader)
-        validation_accuracy = accuracy/len(dataloader)
+                top_p, top_class = ps.topk(1, dim=1)
+                equals = top_class == labels.view(*top_class.shape)
+                accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
 
-        return validation_loss, validation_accuracy
+        # go back to train mode 
+        self.model.train()
 
-    def save_checkpoint(self, checkpoint_name, class_to_idx): 
+        return loss, accuracy
+
+    def validate_model(self, dataloader, criterion):
+        no_items = len(dataloader)
+
+        # calc loss and accuracy 
+        validation_loss, validation_accuracy = self.accuracy_and_loss(dataloader, criterion)
+        
+        # print results 
+        print(
+            "Validation loss: {:.3f}..".format(validation_loss/no_items),
+            "Validation Accuracy: {:.3f}".format(validation_accuracy/no_items)
+        )             
+
+    def save_checkpoint(self, checkpoint_name, class_to_idx, model_architecture): 
         # create checkpoint
         checkpoint = {
             'input_size': self.input_size,
@@ -139,6 +137,7 @@ class Network:
             'epochs': self.epochs,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict()
+            'model_arch': model.architecture
         }
         # save checkpoint
         torch.save(checkpoint, checkpoint_name)                    
@@ -167,6 +166,9 @@ class Network:
         
         self.model = model 
         self.optimizer = optimizer
+
+    def set_class_to_idx(self, class_to_idx):
+        model.class_to_idx = class_to_idx
         
 
 # utility class to load pretrained models from torchvision.models 
