@@ -3,7 +3,7 @@ from argparse import ArgumentParser # for parsing all command line arguments
 from network import Network
 from network import TorchvisionModels
 from network import UnknownModelError
-from utilities import ImageProcessor
+from utilities import ImageUtilities
 
 # define argument parser 
 parser = ArgumentParser()
@@ -32,9 +32,11 @@ parser.add_argument("--gpu",
                     help="sets the architecture that is used for the newtork")
 parser.add_argument("--mean", 
                     dest="mean",  
+                    default=[0.485, 0.456, 0.406],
                     help="set the mean of the data set used")
 parser.add_argument("--std", 
-                    dest="std",  
+                    dest="std",
+                    std = [0.229, 0.224, 0.225],
                     help="set the std of the data set used")
 parser.add_argument("--image_size", 
                     dest="std",  
@@ -60,6 +62,7 @@ except UnknownModelError as err:
 
 # create network based on arguments dict 
 network = Network({
+    'data_dir': args.data_dir,
     'save_dir': args.save_dir,
     'epochs' : args.epochs,
     'learning_rate': args.learning_rate,
@@ -68,13 +71,22 @@ network = Network({
 })
 
 # image processing 
-image_processor = ImageProcessor({
-    'image_size' = args.image_size,
-    'batch_size' = args.batch_size, 
-    'data_dir' = args.data_dir,
-    'mean' = args.mean
-    ''
+image_utilities = ImageUtilities({
+    'image_size': args.image_size,
+    'batch_size': args.batch_size, 
+    'data_dir': args.data_dir,
+    'mean': args.mean,
+    'std': args.std
 })
+
+image_utilities.load_data()
+data_loaders = image_utilities.get_data_loaders()
+class_to_idx = image_utilities.get_class_to_idx()
+
+#set criterion
+criterion = nn.NLLLoss()
+#train only the classifier
+optimizer = optim.Adam(model.classifier.parameters(), lr=learning_rate) 
 
 #test arguments
 #args = parser.parse_args()
