@@ -1,6 +1,6 @@
-import torch
-from torchvision import datasets, transforms
 from PIL import Image
+from torchvision import datasets, transforms
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -39,10 +39,6 @@ class ImageUtilities:
         # Load the datasets with ImageFolder
         image_datasets = {
             key: datasets.ImageFolder(folders.get(key),transform=val) for key,val in data_transforms.items()
-            }
-                
-        class_to_idx = { 
-            key: value.class_to_idx for key,value in image_datasets.items()
             }
         
         # Using the image datasets and the trainforms, define the dataloaders
@@ -97,8 +93,6 @@ class ImageUtilities:
         # return tensor
         return transposed
     
-    
-
     def imshow(self, image, ax=None, title=None):
         """Imshow for Tensor."""
         if ax is None:
