@@ -1,6 +1,5 @@
 import logging
 import json
-import matplotlib.pyplot as plt
 import numpy as np
 import time
 import sys
@@ -11,23 +10,25 @@ from torch.autograd import Variable
 from torchvision import models
 
 class Network: 
-    #constructor 
+    #constructor f
     def __init__(self, args): 
         # init hyperparameters
-        self.epochs = args.epochs if hasattr(args,'epochs') else 5
-        self.learning_rate = args.learning_rate if hasattr(args,'learning_rate') else 0.001
-        self.device = args.device if hasattr(args,'device') else 'cpu'
-        self.print_info_every = args.print_info_every if hasattr(args, 'print_info_every') else 50
-        self.architecture = args.architecture if hasattr(args, 'architecture') else None
-        self.hidden_units = range(args.hidden_units) if hasattr(args, 'hidden_units') else 512
-        self.output_size = args.output_size if hasattr(args, 'output_size') else 102
-        self.logging_level = getattr(logging, args.logging_level) if hasattr(args, 'logging_level') else getattr(logging, 'WARNING')
-
+        self.epochs = int(args.get('epochs')) if 'epochs' in args.keys() else 5
+        self.learning_rate = float(args.get('learning_rate')) if 'learning_rate' in args.keys() else 0.001
+        self.device = args.get('device') if 'device' in args.keys() else 'cpu'
+        self.print_info_every = int(args.get('print_info_every')) if 'print_info_every' in args.keys() else 50
+        self.architecture = args.get('architecture') if 'architecture' in args.keys() else None
+        self.hidden_units = int(args.get('hidden_units')) if 'hidden_units' in args.keys() else 512
+        self.output_size = int(args.get('output_size')) if 'output_size' in args.keys() else 102
+        self.logging_level = args.get('logging_level') if 'logging_level' in args.keys() else getattr(logging, 'WARNING')
+        self.optimizer = None
+      
         # set log level
         logging.basicConfig(stream=sys.stderr, level=self.logging_level)
-
+        
         # fetch selected model by architecture
         if self.architecture is not None:  
+            
             try:
                 self.model = TorchvisionModels(self.architecture).load()
             except UnknownModelError as error:
@@ -36,54 +37,65 @@ class Network:
             logging.warning('No model architecture was provided!')
             logging.warning('Either provide a valid torchvision architecture by using --arch "[architecturename]",')
             logging.warning('or load an existing checkpoint!')
+            sys.exit(0)
     
     def build_classifier(self):
-        
+        # 
         logging.info('# Building new classifier with {} hidden units'.format(self.hidden_units))
 
-        # get old in_features form model to get the input size of the new classifier
+         # get old in_features form model to get the input size of the new classifier
         self.input_size = self.model.classifier[0].in_features
-
+        
         # freeze params of pretrained network
         for param in self.model.parameters():
             param.requires_grad = False
 
+        multiplier = (self.input_size - self.output_size) // (self.hidden_units+1)
+        logging.info('# multiplier: '+str(multiplier))
+        logging.info('# input nodes: '+str(self.input_size))
+        logging.info('# hidden units: '+str(self.hidden_units))
+        logging.info('# output nodes: '+str(self.output_size))
         # init input layer 
         modules = list()
-        modules.append(nn.Linear(self.input_size,self.hidden_units[0]))
-    
+        modules.append(nn.Linear(self.input_size,self.input_size - multiplier))
+        
         # add hidden layers and output layer
-        for index, size in self.hidden_units:
+        input_nodes, output_nodes = 0,0
+        hidden_layers = range(1,self.hidden_units+1)
+        
+        for i, val in enumerate(hidden_layers):
+            input_nodes = self.input_size - (multiplier * val)
+            if i < (len(hidden_layers)-1):
+                output_nodes = self.input_size - (multiplier * hidden_layers[i+1])
+            else:
+                output_nodes = self.output_size
             modules.append(nn.ReLU())
             modules.append(nn.Dropout(p=0.2))
-            output = self.hidden_units[index+1] if index < (len(self.hidden_units)-1) else self.output_size
-            modules.append(nn.Linear(size, output))
+            modules.append(nn.Linear(input_nodes, output_nodes))
 
         # add activation function
         modules.append(nn.LogSoftmax(dim=1))
                     
-        # build ans set classifier by unpacking modules into a nn.Sequential 
+        # build and set classifier by unpacking modules into a nn.Sequential 
         self.model.classifier = nn.Sequential(*modules)   
 
+         # move model to device
+        self.model.to(self.device)
+        
         # info
         logging.info('# Setting new classifier to:')
-        logging.info(self.model.classfier)  
+        logging.info(self.model.classifier)  
     
     def train_model(self, train_dataloader, validation_dataloader):
         
         logging.info('# Training Started!')
 
         # build new classifier for training
-        self.model.classifier = self.build_classifier()
+        self.build_classifier()
 
          # define criterion and optimizer 
         criterion = nn.NLLLoss()
-        optimizer = optim.Adam(self.model.classifier.parameters(),lr=self.learning_rate)
-
-        # move model to gpu
-        logging.info('Moving model to device: {}'.format(self.device))
-        self.model.to(self.device)
-        
+        self.optimizer = optim.Adam(self.model.classifier.parameters(),lr=self.learning_rate)
         steps = 0
 
         for epoch in range(self.epochs):
@@ -92,12 +104,12 @@ class Network:
                 steps +=1
                 # Move input and label tensors to the GPU
                 images, labels = images.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
 
                 log_ps = self.model(images)
                 train_loss = criterion(log_ps, labels)
                 train_loss.backward()
-                optimizer.step()
+                self.optimizer.step()
                 running_loss += train_loss.item()
                 
                 if steps % self.print_info_every == 0:
@@ -111,10 +123,9 @@ class Network:
                     )             
                     running_loss=0
                     
-    def calc_loss_accuracy(self, dataloader):
+    def calc_loss_accuracy(self, dataloader, criterion=nn.NLLLoss()):
         loss = 0
         accuracy = 0 
-        criterion = nn.NLLLoss()
         
         # go into eval mode 
         self.model.eval()  
@@ -200,7 +211,7 @@ class TorchvisionModels:
 
     def load(self): 
         if hasattr(models, self.architecture):
-            return models.getattr(self.architecture)(pretrained=True) 
+            return getattr(models,self.architecture)(pretrained=True) 
         else: 
             raise UnknownModelError('the entered model is not part of torchvision.models') 
 

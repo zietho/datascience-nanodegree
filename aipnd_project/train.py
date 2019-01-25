@@ -4,48 +4,12 @@ from network import Network
 from utilities import ImageUtilities
 from torch import optim
 from torch import nn
+import logging
+import datetime
+import sys
 
-# start main 
-main()
-
-def main(): 
-
-    args = get_cli_arguments()
-
-    # instantiate network class based on provided arguments 
-    network = Network({
-        'epochs' : args.epochs,
-        'learning_rate': args.learning_rate,
-        'hidden_layers': args.hidden_layers,
-        'device': args.device,
-        'logging_level': args.logging_level
-    })
-
-    # instantiate image utilities class to load image data  
-    image_utilities = ImageUtilities({
-        'image_size': args.image_size,
-        'batch_size': args.batch_size, 
-        'mean': args.mean,
-        'std': args.std
-    })
-
-    # load image datasets 
-    image_datasets, data_loaders = image_utilities.load(args.data_dir)
-
-    # get dataloaders
-    train_dataloader = data_loaders.get('train')
-    validation_dataloader = data_loaders.get('valid')  
-    test_dataloader = data_loaders.get('test')
-    
-    # train model
-    network.train_model(train_dataloader, validation_dataloader)
-
-    # test model 
-    network.test_model(test_dataloader)
-
-    # save model
-    network.save_checkpoint(args.save_dir, image_datasets.get('train').class_to_idx)
-
+__author__ = "Thomas Ziegelbecker"
+__name__ = 'main'
 
 # fn to get all possible cli arguments 
 def get_cli_arguments():
@@ -54,6 +18,7 @@ def get_cli_arguments():
     parser.add_argument('data_dir')
     parser.add_argument("--save_dir", 
                         dest="save_dir", 
+                        default=str(datetime.datetime.today().strftime('%Y-%m-%d'))+'-checkpoint.pth',
                         help="sets the directory where checkpoints are stored")
     parser.add_argument("--arch", 
                         dest="architecture", 
@@ -83,8 +48,47 @@ def get_cli_arguments():
                         dest="logging_level",  
                         default='WARNING',
                         help="set the number of hidden units in the new classifier")
-
+    
     return parser.parse_args()
 
+def main(): 
+    args = get_cli_arguments()
+   
+    logging.basicConfig(stream=sys.stderr, level=getattr(logging, args.logging_level)) #getattr(logging,args.logging_level))
+    
+    # log all provided arguments
+    for key,value in vars(args).items():
+        logging.info(str(key)+':'+str(value))
 
+    # instantiate network class based on provided arguments 
+    network = Network({
+        'epochs' : args.epochs,
+        'learning_rate': args.learning_rate,
+        'hidden_units': args.hidden_units,
+        'device': args.device,
+        'logging_level': args.logging_level,
+        'architecture': args.architecture
+    })
 
+    # instantiate image utilities class to load image data  
+    image_utilities = ImageUtilities({
+        'image_size': 224,
+        'batch_size': 32, 
+        'mean': [0.485, 0.456, 0.406],
+        'std': [0.229, 0.224, 0.225],
+        'logging_level': args.logging_level
+    })
+
+    # load image datasets and train loaders
+    image_datasets, data_loaders = image_utilities.load(args.data_dir)
+    
+    # train model
+    network.train_model(data_loaders.get('train'), data_loaders.get('valid'))
+
+    # test model 
+    network.test_model(data_loaders.get('test'))
+
+    # save model
+    network.save_checkpoint(args.save_dir, image_datasets.get('train').class_to_idx)
+
+main()

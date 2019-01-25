@@ -1,5 +1,7 @@
 from PIL import Image
 from torchvision import datasets, transforms
+import logging
+import sys
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,15 +9,19 @@ import matplotlib.pyplot as plt
 class ImageUtilities:
     #constructor 
     def __init__(self, args):
-        self.mean = args.mean if hasattr(args,'mean') else [0.485, 0.456, 0.406],
-        self.std = args.std if hasattr(args,'std') else [0.229, 0.224, 0.225],
-        self.batch_size = args.batch_size if hasattr(args,'batch_size') else 32
-        self.image_size = args.image_size if hasattr(args,'image_size') else 224
+        self.mean = args.get('mean') if 'mean' in args.keys() else [0.485, 0.456, 0.406]
+        self.std = args.get('std') if 'std' in args.keys() else [0.229, 0.224, 0.225]
+        self.batch_size = args.get('batch_size') if 'batch_size' in args.keys() else 32
+        self.image_size = args.get('image_size') if 'image_size' in args.keys() else 224
+        self.logging_level = args.get('logging_level') if 'logging_level' in args.keys() else getattr(logging, 'WARNING')
+         # set log level
+        logging.basicConfig(stream=sys.stderr, level=self.logging_level)
 
     def load(self, data_dir):
         # set up directories for the three datasets
         folders = {key: data_dir+'/{}'.format(key) for key in ['train', 'valid', 'test']}
-
+        logging.info(self.mean)
+        logging.info(self.std)
         # define transforms
         data_transforms = {
             'train': transforms.Compose([
@@ -23,16 +29,16 @@ class ImageUtilities:
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomResizedCrop(self.image_size),
                 transforms.ToTensor(),
-                transforms.Normalize(self.mean,self.std)
+                transforms.Normalize(mean=self.mean,std=self.std)
                 ]),
             'valid': transforms.Compose([
                 transforms.Resize(size=[self.image_size,self.image_size]),
                 transforms.ToTensor(),
-                transforms.Normalize(self.mean,self.std)]),
+                transforms.Normalize(mean=self.mean,std=self.std)]),
             'test': transforms.Compose([
                 transforms.Resize(size=[self.image_size,self.image_size]),
                 transforms.ToTensor(),
-                transforms.Normalize(self.mean,self.std)
+                transforms.Normalize(mean=self.mean,std=self.std)
                 ])
             } 
             
@@ -43,10 +49,15 @@ class ImageUtilities:
         
         # Using the image datasets and the trainforms, define the dataloaders
         data_loaders = {
-            'train': torch.utils.data.DataLoader(image_datasets['train'], batch_size=self.batch_size, shuffle=True),
-            'valid': torch.utils.data.DataLoader(image_datasets['valid'], batch_size=self.batch_size),
-            'test': torch.utils.data.DataLoader(image_datasets['test'], batch_size=self.batch_size)
+            'train': torch.utils.data.DataLoader(image_datasets.get('train'), batch_size=self.batch_size, shuffle=True),
+            'valid': torch.utils.data.DataLoader(image_datasets.get('valid'), batch_size=self.batch_size),
+            'test': torch.utils.data.DataLoader(image_datasets.get('test'), batch_size=self.batch_size)
             } 
+        
+        # show
+        logging.info(data_transforms)
+        logging.info(image_datasets)
+        logging.info(data_loaders)
 
         return image_datasets, data_loaders
     
@@ -113,8 +124,3 @@ class ImageUtilities:
         ax.imshow(image)
         
         return ax
-        
-    
-    
-
-    
