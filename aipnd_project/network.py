@@ -4,6 +4,8 @@ import numpy as np
 import time
 import sys
 import torch
+import os
+import datetime
 from torch import nn
 from torch import optim
 from torch.autograd import Variable
@@ -12,32 +14,35 @@ from torchvision import models
 class Network: 
     #constructor f
     def __init__(self, args): 
-        # init hyperparameters
+        # init setable hyperparameters
         self.epochs = int(args.get('epochs')) if 'epochs' in args.keys() else 5
         self.learning_rate = float(args.get('learning_rate')) if 'learning_rate' in args.keys() else 0.001
-        self.device = args.get('device') if 'device' in args.keys() else 'cpu'
-        self.print_info_every = int(args.get('print_info_every')) if 'print_info_every' in args.keys() else 50
-        self.architecture = args.get('architecture') if 'architecture' in args.keys() else None
+        self.device = str(args.get('device')) if 'device' in args.keys() else 'cpu'
+        self.architecture = str(args.get('architecture')) if 'architecture' in args.keys() else 'vgg19'
         self.hidden_units = int(args.get('hidden_units')) if 'hidden_units' in args.keys() else 512
-        self.output_size = int(args.get('output_size')) if 'output_size' in args.keys() else 102
-        self.logging_level = args.get('logging_level') if 'logging_level' in args.keys() else getattr(logging, 'WARNING')
-        self.optimizer = None
-      
+        self.top_k = int(args.get('top_k')) if 'top_k' in args.keys() else 3
+        self.category_names_file = args.get('category_names') if 'category_names' in args.keys() else ''
+        
         # set log level
+        self.logging_level = str(args.get('logging_level')) if 'logging_level' in args.keys() else getattr(logging, 'WARNING')
         logging.basicConfig(stream=sys.stderr, level=self.logging_level)
         
         # fetch selected model by architecture
-        if self.architecture is not None:  
-            
-            try:
-                self.model = TorchvisionModels(self.architecture).load()
-            except UnknownModelError as error:
-                logging.error(error)
+        try:
+            self.model = TorchvisionModels(self.architecture).load()
+        except UnknownModelError as error:
+            logging.error(error)
+        
+        # init optimizer and output size
+        self.optimizer = None
+        self.output_size = 102 
+
+        # set category names files
+        if not os.path.exists(self.category_names_file):
+            raise NoCategoryNamesFileError('Provided files {} does not exist!'.format(self.category_names_file))
         else: 
-            logging.warning('No model architecture was provided!')
-            logging.warning('Either provide a valid torchvision architecture by using --arch "[architecturename]",')
-            logging.warning('or load an existing checkpoint!')
-            sys.exit(0)
+            with open(self.category_names_file, 'r') as file:
+                self.category_names = json.load(file)
     
     def build_classifier(self):
         # 
@@ -78,25 +83,27 @@ class Network:
                     
         # build and set classifier by unpacking modules into a nn.Sequential 
         self.model.classifier = nn.Sequential(*modules)   
-
-         # move model to device
-        self.model.to(self.device)
         
         # info
         logging.info('# Setting new classifier to:')
         logging.info(self.model.classifier)  
     
     def train_model(self, train_dataloader, validation_dataloader):
-        
         logging.info('# Training Started!')
 
-        # build new classifier for training
+        # build new classifier 
         self.build_classifier()
 
-         # define criterion and optimizer 
+        # move model to device
+        self.model.to(self.device)
+        logging.info('# model moved to {}'.format(self.device)) 
+        
+        # define criterion and optimizer
         criterion = nn.NLLLoss()
         self.optimizer = optim.Adam(self.model.classifier.parameters(),lr=self.learning_rate)
         steps = 0
+        print_info_every = 50
+        no_items = len(validation_dataloader)
 
         for epoch in range(self.epochs):
             running_loss = 0
@@ -112,14 +119,13 @@ class Network:
                 self.optimizer.step()
                 running_loss += train_loss.item()
                 
-                if steps % self.print_info_every == 0:
+                if steps % print_info_every == 0:
                     validation_loss, validation_accuracy = self.calc_loss_accuracy(validation_dataloader, criterion)
-                    no_items = len(validation_dataloader)
                     print(
                         "epoch: {}/{}".format(epoch+1,self.epochs),
-                        "Train loss: {:.3f}..".format(running_loss/self.print_info_every),
-                        "Validation loss: {:.3f}..".format(validation_loss/no_items),
-                        "Validation Accuracy: {:.3f}".format(validation_accuracy/no_items)
+                        "train loss: {:.3f}..".format(running_loss/print_info_every),
+                        "validation loss: {:.3f}..".format(validation_loss/no_items),
+                        "validation accuracy: {:.3f}".format(validation_accuracy/no_items)
                     )             
                     running_loss=0
                     
@@ -158,8 +164,13 @@ class Network:
             "Test Accuracy: {:.3f}".format(test_accuracy/no_items)
         )             
 
-    def save_checkpoint(self, checkpoint_name, class_to_idx): 
-        # create checkpoint
+    def save_checkpoint(self, save_dir, class_to_idx): 
+        # create saving path and checkpoint
+        if not os.path.isdir(save_dir):
+            logging.info('# save directory does not exit, thurs creating: {}'.format(save_dir))
+            os.makedirs(save_dir)
+        checkpoint_name = 'checkpoint-'+str(datetime.datetime.today().strftime('%Y-%m-%d'))+'.pth.tar'    
+        checkpoint_path = os.path.join(save_dir, checkpoint_name)
         checkpoint = {
             'input_size': self.input_size,
             'hidden_units': self.hidden_units,
@@ -171,16 +182,16 @@ class Network:
             'architecture': self.architecture,
             'optimizer_state_dict': self.optimizer.state_dict()
         }
+
         # save checkpoint
-        torch.save(checkpoint, checkpoint_name)                    
+        logging.info('# saving checkpoint to {}'.format(checkpoint_path))
+        torch.save(checkpoint, checkpoint_path)                    
 
 
-    def load_checkpoint(self, model, filepath):
-        # get checkpoint
-        checkpoint = torch.load(filepath)
+    def load_checkpoint(self, checkpoint_path):
+        logging.info('# loading checkpoint from {}'.format(checkpoint_path))
+        checkpoint = torch.load(checkpoint_path)
         
-        logging.info('# loading checkpoint')
-
         for hyperparam in ['input_size', 'hidden_units', 'output_size', 'epochs', 'architecture']:
             setattr(self, hyperparam, checkpoint[hyperparam])
             logging.info(hyperparam+': {}'.format(getattr(self, hyperparam)))
@@ -192,16 +203,40 @@ class Network:
             logging.error(error)
 
         # build and set classifier such that the loaded checkpoint can be applied correctly
-        self.model.classifier = self.build_classifier()
+        self.build_classifier()
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.class_to_idx = checkpoint['class_to_idx']
         
         # set and load optimizer
-        optimizer = optim.Adam(self.model.classifier.parameters(), lr=self.learning_rate) 
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.optimizer = optim.Adam(self.model.classifier.parameters(), lr=self.learning_rate) 
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    def predict(self, image):
+        if self.model is None:
+            raise NoModelProvidedError('No model provided! E.g., load checkpoint first!')
+        else:
+            self.model.eval()
         
-        self.model = model 
-        self.optimizer = optimizer
+        img = torch.from_numpy(image).float()
+        img = img.unsqueeze(0)
+
+        # Calculate the class probabilities (softmax) for img
+        with torch.no_grad():
+            output = self.model.forward(img)
+            ps = torch.exp(output)
+            probs, classes =  ps.data.topk(self.top_k)
+            # Map classes to indices 
+            inverted_class_to_idx = {self.model.class_to_idx[k]: k for k in self.model.class_to_idx}
+            
+            mapped_classes = list()
+            for label in classes.numpy()[0]:
+                mapped_classes.append(inverted_class_to_idx[label])
+            
+            # map the inverted classes now to the given category names
+            categories = [self.category_names.get(x) for x in mapped_classes]
+        
+        # Return results
+        return probs.numpy()[0], categories
 
 # utility class to load pretrained models from torchvision.models 
 class TorchvisionModels: 
@@ -216,6 +251,22 @@ class TorchvisionModels:
             raise UnknownModelError('the entered model is not part of torchvision.models') 
 
 class UnknownModelError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __repr__(self):
+        return self.message
+    def __str__(self):
+        return self.message
+
+class NoModelProvidedError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __repr__(self):
+        return self.message
+    def __str__(self):
+        return self.message
+
+class NoCategoryNamesFileError(Exception):
     def __init__(self, message):
         self.message = message
     def __repr__(self):

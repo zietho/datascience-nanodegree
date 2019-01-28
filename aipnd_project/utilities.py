@@ -2,6 +2,7 @@ from PIL import Image
 from torchvision import datasets, transforms
 import logging
 import sys
+import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,7 +61,13 @@ class ImageUtilities:
         logging.info(data_loaders)
 
         return image_datasets, data_loaders
-    
+
+    def open(self, image_path):
+        if not os.path.exists(image_path):
+            logging.info('# no image found with the given path {}'.format(image_path))
+            sys.exit(0)
+        return Image.open(image_path)
+        
     def process(self, image, new_size, crop_size):
         ''' Scales, crops, and normalizes a PIL image for a PyTorch model,
             returns an Numpy array
@@ -103,24 +110,4 @@ class ImageUtilities:
         
         # return tensor
         return transposed
-    
-    def imshow(self, image, ax=None, title=None):
-        """Imshow for Tensor."""
-        if ax is None:
-            fig, ax = plt.subplots()
-        
-        # PyTorch tensors assume the color channel is the first dimension
-        # but matplotlib assumes is the third dimension
-        image = image.transpose((1, 2, 0))
-        
-        # Undo preprocessing
-        mean = np.array(self.mean)
-        std = np.array(self.std)
-        image = std * image + mean
-        
-        # Image needs to be clipped between 0 and 1 or it looks like noise when displayed
-        image = np.clip(image, 0, 1)
-        
-        ax.imshow(image)
-        
-        return ax
+

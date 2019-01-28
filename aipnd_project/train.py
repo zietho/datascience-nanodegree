@@ -2,10 +2,7 @@
 from argparse import ArgumentParser # for parsing all command line arguments
 from network import Network
 from utilities import ImageUtilities
-from torch import optim
-from torch import nn
 import logging
-import datetime
 import sys
 
 __author__ = "Thomas Ziegelbecker"
@@ -13,12 +10,10 @@ __name__ = 'main'
 
 # fn to get all possible cli arguments 
 def get_cli_arguments():
-    
     parser = ArgumentParser()
     parser.add_argument('data_dir')
     parser.add_argument("--save_dir", 
                         dest="save_dir", 
-                        default=str(datetime.datetime.today().strftime('%Y-%m-%d'))+'-checkpoint.pth',
                         help="sets the directory where checkpoints are stored")
     parser.add_argument("--arch", 
                         dest="architecture", 

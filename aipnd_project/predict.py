@@ -1,8 +1,6 @@
 # IMPORTS
 from argparse import ArgumentParser # for parsing all command line arguments
 from network import Network
-from network import TorchvisionModels
-from network import UnknownModelError
 from utilities import ImageUtilities
 import logging
 import sys
@@ -12,18 +10,20 @@ __name__ == "__main__"
 
 # fn to get all possible cli arguments 
 def get_cli_arguments():
-    # define argument parser 
     parser = ArgumentParser()
-    parser.add_argument('image_path')
-    parser.add_argument('checkpoint')
-    parser.add_argument("--tok_k", 
-                        dest="top_k", 
-                        default="5",
+    parser.add_argument('image',
+                        help="provide the path to an image")
+    parser.add_argument('checkpoint',
+                        help="provide the path to an existing checkpoint")
+    parser.add_argument("--top_k", 
+                        dest="top_k",
                         action="store",
+                        default="3",
                         help="sets number of top results")
     parser.add_argument("--category_names", 
                         dest="category_names", 
                         action="store",
+                        default="cat_to_name.json",
                         help="sets the category names for the results")
     parser.add_argument("--gpu", 
                         dest="device",
@@ -37,15 +37,7 @@ def get_cli_arguments():
                         default="WARNING",
                         help="flag for deciding whether gpu is used or not")
 
-    # retrieve all given CLI arguments
     return parser.parse_args()
-
-
-
-#äimage_path = 'flowers/test/2/image_05107.jpg'
-#image = Image.open(image_path)
-#processed_image = process_image(image)
-#imshow(processed_image)
 
 def main():
     args = get_cli_arguments()
@@ -65,6 +57,26 @@ def main():
         'logging_level': args.logging_level
     })
 
+     # instantiate network class based on provided arguments 
+    network = Network({
+        'device': args.device,
+        'top_k': args.top_k,
+        'category_names': args.category_names,
+        'logging_level': args.logging_level
+    })
+
+    # load given checkpoint ans by that set necessary model 
+    network.load_checkpoint(args.checkpoint)
+
+    # get and process given image  
+    image = image_utilities.open(args.image)
+    processed_image = image_utilities.process(image, 256, 224)
     
-        
+    # predict
+    probs, classes = network.predict(processed_image)
+
+    # print results
+    for i, val in enumerate(classes):
+        print(str(i+1)+' - '+val+' : '+str(probs[i]))
+
 main()

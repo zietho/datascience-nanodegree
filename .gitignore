@@ -36,6 +36,7 @@ Deep\ Learning/lecture-screenshots
 
 aipnd_project/assets/*
 aipnd_project/flowers/*
+aipnd_project/checkpoints/*
 aipnd_project/checkpoint-12012019.pth
 aipnd_project/2019-01-24-checkpoint.pth
 aipnd_project/__pycache__/*
