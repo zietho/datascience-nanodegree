@@ -19,10 +19,11 @@ class ImageUtilities:
         logging.basicConfig(stream=sys.stderr, level=self.logging_level)
 
     def load(self, data_dir):
+        logging.info('# Loadig image data into data loaders')
+        
         # set up directories for the three datasets
         folders = {key: data_dir+'/{}'.format(key) for key in ['train', 'valid', 'test']}
-        logging.info(self.mean)
-        logging.info(self.std)
+    
         # define transforms
         data_transforms = {
             'train': transforms.Compose([
@@ -56,9 +57,9 @@ class ImageUtilities:
             } 
         
         # show
-        logging.info(data_transforms)
-        logging.info(image_datasets)
-        logging.info(data_loaders)
+        #logging.info(data_transforms)
+        #logging.info(image_datasets)
+        #logging.info(data_loaders)
 
         return image_datasets, data_loaders
 

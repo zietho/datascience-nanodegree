@@ -12,30 +12,40 @@ from torch.autograd import Variable
 from torchvision import models
 
 class Network: 
-    #constructor f
+    #constructor 
     def __init__(self, args): 
         # init setable hyperparameters
         self.epochs = int(args.get('epochs')) if 'epochs' in args.keys() else 5
         self.learning_rate = float(args.get('learning_rate')) if 'learning_rate' in args.keys() else 0.001
         self.device = str(args.get('device')) if 'device' in args.keys() else 'cpu'
-        self.architecture = str(args.get('architecture')) if 'architecture' in args.keys() else 'vgg19'
+        self.architecture = str(args.get('architecture')) if 'architecture' in args.keys() else None
         self.hidden_units = int(args.get('hidden_units')) if 'hidden_units' in args.keys() else 512
         self.top_k = int(args.get('top_k')) if 'top_k' in args.keys() else 3
-        self.category_names_file = args.get('category_names') if 'category_names' in args.keys() else ''
+        self.category_names_file = args.get('category_names') if 'category_names' in args.keys() else 'cat_to_name.json'
         
         # set log level
         self.logging_level = str(args.get('logging_level')) if 'logging_level' in args.keys() else getattr(logging, 'WARNING')
         logging.basicConfig(stream=sys.stderr, level=self.logging_level)
         
-        # fetch selected model by architecture
-        try:
+        if self.architecture != None:
+            # architecture check
+            self.supported_architectures = ['densenet', 'resnet', 'vgg']
+            architecture_supported = False 
+            for supported_architecture in self.supported_architectures:
+                if self.architecture.find(supported_architecture) != -1:
+                    architecture_supported = True
+
+            if architecture_supported == False:
+                error_message = 'The given architecture is not supported! Pls use one of the following: '
+                supported = ''.join(map(lambda x: x+', ',self.supported_architectures))
+                raise UnsupportedArchitectureError(error_message+supported)
+
+            # fetch selected model by architecture
             self.model = TorchvisionModels(self.architecture).load()
-        except UnknownModelError as error:
-            logging.error(error)
         
-        # init optimizer and output size
-        self.optimizer = None
-        self.output_size = 102 
+            # init optimizer and output size
+            self.optimizer = None
+            self.output_size = 102 
 
         # set category names files
         if not os.path.exists(self.category_names_file):
@@ -43,20 +53,49 @@ class Network:
         else: 
             with open(self.category_names_file, 'r') as file:
                 self.category_names = json.load(file)
+
+    def __get_classifier_by_model(self):
+        if self.architecture.find('vgg') != -1:
+            return self.model.classifier
+        elif self.architecture.find('densenet') != -1:
+            return self.model.classifier
+        elif self.architecture.find('resnet') != -1:
+            return self.model.fc
+        else:   
+            logging.error('#architecture not supported!')
+            return 0
+
+    def __set_classifier_by_model(self, new_classifier):
+
+        # info
+        logging.info('# Setting new classifier to:')
+        logging.info(new_classifier)
+        if self.architecture.find('vgg') != -1:
+            self.model.classifier = new_classifier
+        elif self.architecture.find('densenet') != -1:
+            self.model.classifier = new_classifier
+        elif self.architecture.find('resnet') != -1:
+            self.model.fc = new_classifier
+        else:   
+            logging.error('#architecture not supported!')
+
+    def __get_input_size_by_model(self):
+        classifier = self.__get_classifier_by_model()
+        if self.architecture.find('vgg') != -1:
+            return classifier[0].in_features
+        else:
+            return classifier.in_features
     
     def build_classifier(self):
-        # 
         logging.info('# Building new classifier with {} hidden units'.format(self.hidden_units))
 
-         # get old in_features form model to get the input size of the new classifier
-        self.input_size = self.model.classifier[0].in_features
+        self.input_size = self.__get_input_size_by_model()         
         
         # freeze params of pretrained network
         for param in self.model.parameters():
             param.requires_grad = False
 
         multiplier = (self.input_size - self.output_size) // (self.hidden_units+1)
-        logging.info('# multiplier: '+str(multiplier))
         logging.info('# input nodes: '+str(self.input_size))
         logging.info('# hidden units: '+str(self.hidden_units))
         logging.info('# output nodes: '+str(self.output_size))
@@ -82,11 +121,8 @@ class Network:
         modules.append(nn.LogSoftmax(dim=1))
                     
         # build and set classifier by unpacking modules into a nn.Sequential 
-        self.model.classifier = nn.Sequential(*modules)   
-        
-        # info
-        logging.info('# Setting new classifier to:')
-        logging.info(self.model.classifier)  
+        self.__set_classifier_by_model(nn.Sequential(*modules))   
+    
     
     def train_model(self, train_dataloader, validation_dataloader):
         logging.info('# Training Started!')
@@ -100,7 +136,7 @@ class Network:
         
         # define criterion and optimizer
         criterion = nn.NLLLoss()
-        self.optimizer = optim.Adam(self.model.classifier.parameters(),lr=self.learning_rate)
+        self.optimizer = optim.Adam(self.__get_classifier_by_model().parameters(),lr=self.learning_rate)
         steps = 0
         print_info_every = 50
         no_items = len(validation_dataloader)
@@ -166,11 +202,16 @@ class Network:
 
     def save_checkpoint(self, save_dir, class_to_idx): 
         # create saving path and checkpoint
-        if not os.path.isdir(save_dir):
+        
+        if save_dir != None and not os.path.isdir(save_dir):
             logging.info('# save directory does not exit, thurs creating: {}'.format(save_dir))
             os.makedirs(save_dir)
         checkpoint_name = 'checkpoint-'+str(datetime.datetime.today().strftime('%Y-%m-%d'))+'.pth.tar'    
-        checkpoint_path = os.path.join(save_dir, checkpoint_name)
+        checkpoint_path = ''
+        if save_dir != None:
+            checkpoint_path = os.path.join(save_dir, checkpoint_name)
+        else:
+            checkpoint_path = checkpoint_name
         checkpoint = {
             'input_size': self.input_size,
             'hidden_units': self.hidden_units,
@@ -208,7 +249,7 @@ class Network:
         self.model.class_to_idx = checkpoint['class_to_idx']
         
         # set and load optimizer
-        self.optimizer = optim.Adam(self.model.classifier.parameters(), lr=self.learning_rate) 
+        self.optimizer = optim.Adam(self.__get_classifier_by_model().parameters(), lr=self.learning_rate) 
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     def predict(self, image):
@@ -248,7 +289,7 @@ class TorchvisionModels:
         if hasattr(models, self.architecture):
             return getattr(models,self.architecture)(pretrained=True) 
         else: 
-            raise UnknownModelError('the entered model is not part of torchvision.models') 
+            raise UnknownModelError('the entered model is not part of supported torchvision.models') 
 
 class UnknownModelError(Exception):
     def __init__(self, message):
@@ -267,6 +308,14 @@ class NoModelProvidedError(Exception):
         return self.message
 
 class NoCategoryNamesFileError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __repr__(self):
+        return self.message
+    def __str__(self):
+        return self.message
+
+class UnsupportedArchitectureError(Exception):
     def __init__(self, message):
         self.message = message
     def __repr__(self):
