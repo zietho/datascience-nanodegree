@@ -4,35 +4,40 @@
 Deep\ Learning/lecture-screenshots
 
 # by default ignore all files
-02 deep-learning/autoencoder
-02 deep-learning/batch-norm
-02 deep-learning/dcgan-svhn
-02 deep-learning/embeddings
-02 deep-learning/environments
-02 deep-learning/face_generation
-02 deep-learning/first-neural-network
-02 deep-learning/gan_mnist
-02 deep-learning/image-classification
-02 deep-learning/IMDB-keras
-02 deep-learning/intro-to-rnns
-02 deep-learning/intro-to-tensorflow
-02 deep-learning/intro-to-tflearn
-02 deep-learning/language-translation
-02 deep-learning/linear-regression
-02 deep-learning/reinforcement
-02 deep-learning/semi-supervised
-02 deep-learning/sentiment-network
-02 deep-learning/sentiment-rnn
-02 deep-learning/seq2seq
-02 deep-learning/student-admissions
-02 deep-learning/student-admissions-keras
-02 deep-learning/tensorboard
-02 deep-learning/transfer-learning
-02 deep-learning/tv-script-generation
-02 deep-learning/weight-initialization
+02-deep-learning/autoencoder
+02-deep-learning/batch-norm
+02-deep-learning/dcgan-svhn
+02-deep-learning/embeddings
+02-deep-learning/environments
+02-deep-learning/face_generation
+02-deep-learning/first-neural-network
+02-deep-learning/gan_mnist
+02-deep-learning/image-classification
+02-deep-learning/IMDB-keras
+02-deep-learning/intro-to-rnns
+02-deep-learning/intro-to-tensorflow
+02-deep-learning/intro-to-tflearn
+02-deep-learning/language-translation
+02-deep-learning/linear-regression
+02-deep-learning/reinforcement
+02-deep-learning/semi-supervised
+02-deep-learning/sentiment-network
+02-deep-learning/sentiment-rnn
+02-deep-learning/seq2seq
+02-deep-learning/student-admissions
+02-deep-learning/student-admissions-keras
+02-deep-learning/tensorboard
+02-deep-learning/transfer-learning
+02-deep-learning/tv-script-generation
+02-deep-learning/weight-initialization
 
-# 02 deep-learning/gradient-descent
-02 deep-learning/gradient-descent/GradientDescentSolutions.ipynb
+# 02-deep-learning/gradient-descent
+02-deep-learning/gradient-descent/GradientDescentSolutions.ipynb
+
+
+# 03 unsupervised
+03-unsupervised-learning/screenshots
+03-unsupervised-learning/papers
 
 aipnd_project/assets/*
 aipnd_project/flowers/*
